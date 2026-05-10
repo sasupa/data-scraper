@@ -153,6 +153,7 @@ How the public internet stays out:
 2. **Configure env**:
    ```bash
    cp .env.example .env
+   # set NODE_ENV=production   (logger uses raw JSON; dev mode requires pino-pretty)
    # set HOST=0.0.0.0
    # INTERNAL_TOKEN=$(openssl rand -hex 32)
    # ADMIN_PASSWORD=$(openssl rand -base64 24)
