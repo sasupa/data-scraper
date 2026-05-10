@@ -111,6 +111,38 @@ Routes only ever call `getCached`. Cron jobs call `refresh` (which internally ca
 6. Add env vars to `.env.example`
 7. Document the JSON shape in a comment at the top of the route file
 
+## Capture mode (push, not pull)
+
+Some providers can't be scraped headlessly from a server cron — Nordnet is
+the canonical example. Their auth is short-lived (~30s Bearer tokens minted
+client-side), MFA-gated, or otherwise resists "log in once and let cron
+take it from there". For those, the provider runs in `mode='capture'`:
+
+- The server-side provider exports `ingest(tenantId, body)` instead of
+  doing its own fetching. `fetchFresh` throws — no scheduled refresh path.
+- The scheduler **skips** capture-mode providers (`jobs/scheduler.js` checks
+  `provider.mode === 'capture'` first).
+- A workstation-side script in `capture/` opens a real browser, waits for
+  the human to log in, harvests credentials in memory, and POSTs the result
+  to `/api/v1/ingest/<provider>/<thing>`.
+- The ingest endpoint reads `tenantId` from the **body**, not the
+  `X-Tenant-Id` header — capture scripts naturally group multiple per-account
+  POSTs under one tenants.json entry. `/ingest` mounts before
+  `requireTenant` in `server/index.js` so the body-tenant path doesn't get
+  caught by the header-tenant middleware.
+- All session state (cookies, Bearer tokens) lives in an ephemeral browser
+  context — closing the browser drops it. No persistence on the workstation
+  beyond `capture/.env` (DATASCRAPER_URL + INTERNAL_TOKEN) and
+  `capture/tenants.json` (account UUIDs + bootstrap URL).
+- Capture is **atomic at the capture phase**: all accounts collected in
+  memory, then a single y/N prompt with actual values (positions count,
+  total, cash), then sequential POSTs. POST failures abort the rest, but
+  the server UPSERTs — re-running the capture is safe and idempotent.
+
+Run: `npm run capture:nordnet` (workstation only; playwright is in
+`optionalDependencies` and lives in `node_modules` only when not skipped
+via `--omit=optional`).
+
 ## Anti-patterns to avoid
 
 - ❌ Calling `fetchFresh` from a route handler (causes timeouts, rate-limit blowups)
@@ -121,6 +153,8 @@ Routes only ever call `getCached`. Cron jobs call `refresh` (which internally ca
 - ❌ Forming a hypothesis before reading the actual error log (`err.log`, `pm2 logs`)
 - ❌ Assuming PM2-managed service uses `.env` NODE_ENV — it uses `ecosystem.config.cjs`'s `env` block
 - ❌ Adding a debugging finding as a code fix without recording the *why* in `lessons.md`
+- ❌ Trying to run a capture-mode provider headless from cron — capture is human-in-the-loop by design
+- ❌ Persisting Bearer tokens or session cookies to disk in `capture/` — ephemeral context only, browser close drops everything
 
 ## Deployment
 
@@ -168,6 +202,8 @@ How the public internet stays out:
    cp .env.example .env
    # set NODE_ENV=production   (logger uses raw JSON; dev mode requires pino-pretty)
    # set HOST=0.0.0.0
+   # set NORDNET_MODE=capture  (data arrives via push from a workstation;
+   #                            cron is skipped server-side)
    # INTERNAL_TOKEN=$(openssl rand -hex 32)
    # ADMIN_PASSWORD=$(openssl rand -base64 24)
    ```
