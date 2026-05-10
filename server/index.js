@@ -8,6 +8,7 @@ import { requireAdminAuth } from './middleware/admin-auth.js';
 import { errorHandler } from './middleware/error.js';
 import { healthRouter } from './routes/health.js';
 import { portfolioRouter } from './routes/portfolio.js';
+import { ingestRouter } from './routes/ingest.js';
 import { adminRouter } from './routes/admin.js';
 import { startScheduler } from './jobs/scheduler.js';
 
@@ -21,9 +22,15 @@ app.use(express.json({ limit: '1mb' }));
 // 3. Public routes (no auth)
 app.use('/health', healthRouter);
 
-// 4. Internal API — every /api route requires token + tenant
+// 4. Internal API — every /api route requires the token. Tenant scoping
+//    differs per route family: most use the X-Tenant-Id header (canonical),
+//    /ingest reads tenantId from the request body because capture scripts
+//    naturally group account-level POSTs under a tenant config. Order
+//    matters: /ingest must mount BEFORE requireTenant so the body-tenant
+//    path doesn't get caught by the header-tenant middleware.
 const api = express.Router();
 api.use(requireInternalToken);
+api.use('/ingest', ingestRouter);
 api.use(requireTenant);
 api.use('/portfolio', portfolioRouter);
 
