@@ -14,6 +14,14 @@ import { providers } from '../providers/index.js';
 
 export function startScheduler() {
   for (const provider of providers) {
+    // Capture-mode providers receive data via push (POST /api/v1/ingest/...)
+    // from a workstation script. There's no server-side fetch path, so cron
+    // would only ever throw — skip registration entirely.
+    if (provider.mode === 'capture') {
+      logger.info({ provider: provider.name }, 'Capture mode — no cron registered (data arrives via push)');
+      continue;
+    }
+
     if (!cron.validate(provider.schedule)) {
       logger.error({ provider: provider.name }, 'Invalid cron schedule, skipping');
       continue;
