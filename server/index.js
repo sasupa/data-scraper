@@ -4,9 +4,11 @@ import { config } from './config.js';
 import { logger } from './utils/logger.js';
 // Schema is applied on first import of ./db/index.js (transitive via routes/providers below).
 import { requireInternalToken, requireTenant } from './middleware/auth.js';
+import { requireAdminAuth } from './middleware/admin-auth.js';
 import { errorHandler } from './middleware/error.js';
 import { healthRouter } from './routes/health.js';
 import { portfolioRouter } from './routes/portfolio.js';
+import { adminRouter } from './routes/admin.js';
 import { startScheduler } from './jobs/scheduler.js';
 
 const app = express();
@@ -26,6 +28,10 @@ api.use(requireTenant);
 api.use('/portfolio', portfolioRouter);
 
 app.use('/api/v1', api);
+
+// 5. Internal admin UI — Basic auth, separate credential from the API token.
+//    Mounted on its own router so it never shares middleware with /api/v1.
+app.use('/admin', requireAdminAuth, adminRouter);
 
 // 5. Catch-all 404
 app.use((req, res) => {

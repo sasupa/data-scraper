@@ -107,7 +107,7 @@ export async function getCached(tenantId) {
 }
 
 export async function refresh(tenantId) {
-  return runRefresh(name, tenantId, async () => {
+  return runRefresh(name, tenantId, async (previousRaw) => {
     const positions = await fetchFresh(tenantId);
     const fetchedAt = nowIso();
 
@@ -141,6 +141,49 @@ export async function refresh(tenantId) {
     const baseCurrency = positions[0]?.currency || 'EUR';
     upsertSnapshot.run(tenantId, todayIso(), totalValue, baseCurrency, JSON.stringify(positions));
 
-    return rowsWritten;
+    return {
+      rowsWritten,
+      raw: positions,                       // shown in /admin "Raw" panel
+      diff: diffPositions(previousRaw, positions),
+    };
   });
+}
+
+/**
+ * Position-level diff against the previous run, identified by
+ * (account_id, symbol). Computed at refresh time so /admin only renders.
+ */
+function diffPositions(prev, curr) {
+  if (!Array.isArray(prev)) return { firstRun: true };
+
+  const keyOf = (p) => `${p.account_id}|${p.symbol}`;
+  const prevMap = new Map(prev.map((p) => [keyOf(p), p]));
+  const currMap = new Map(curr.map((p) => [keyOf(p), p]));
+
+  const added = [];
+  const removed = [];
+  const changed = [];
+  let unchangedCount = 0;
+
+  for (const [k, c] of currMap) {
+    const p = prevMap.get(k);
+    if (!p) {
+      added.push({ symbol: c.symbol, quantity: c.quantity, market_value: c.market_value });
+    } else if (p.quantity !== c.quantity || p.market_value !== c.market_value) {
+      changed.push({
+        symbol: c.symbol,
+        from: { quantity: p.quantity, market_value: p.market_value },
+        to: { quantity: c.quantity, market_value: c.market_value },
+      });
+    } else {
+      unchangedCount++;
+    }
+  }
+  for (const [k, p] of prevMap) {
+    if (!currMap.has(k)) {
+      removed.push({ symbol: p.symbol, quantity: p.quantity, market_value: p.market_value });
+    }
+  }
+
+  return { added, removed, changed, unchangedCount };
 }

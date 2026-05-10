@@ -1,22 +1,19 @@
 import cron from 'node-cron';
 import { db } from '../db/index.js';
 import { logger } from '../utils/logger.js';
-import * as nordnet from '../providers/nordnet.js';
+import { providers } from '../providers/index.js';
 
 /**
- * BEST PRACTICE: schedule all jobs in one place.
- *
- * If every provider registered its own cron in its own file, you'd have
- * to grep the codebase to know what's running. Centralized = obvious.
+ * Schedule all jobs in one place. Provider list comes from the central
+ * registry (providers/index.js) so /admin and the scheduler iterate the
+ * same array — no risk of one knowing about a provider the other doesn't.
  *
  * Each job iterates over ALL tenants in the tenants table.
  * To add a new tenant: insert into tenants, restart (or hot-reload).
  */
 
-const PROVIDERS = [nordnet];
-
 export function startScheduler() {
-  for (const provider of PROVIDERS) {
+  for (const provider of providers) {
     if (!cron.validate(provider.schedule)) {
       logger.error({ provider: provider.name }, 'Invalid cron schedule, skipping');
       continue;

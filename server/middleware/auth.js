@@ -1,28 +1,16 @@
-import crypto from 'node:crypto';
 import { config } from '../config.js';
+import { timingSafeCompare } from '../utils/secrets.js';
 
 /**
- * BEST PRACTICE: constant-time comparison for secrets.
- *
- * If you do `if (token === config.internalToken)`, a clever attacker
- * can detect timing differences between "first character wrong" vs
- * "first ten characters right". `crypto.timingSafeEqual` always
- * takes the same time regardless of where strings differ.
- *
- * Overkill for an internal-only API? Yes. Free? Also yes.
- * Habit > convenience.
+ * Constant-time secret comparison lives in utils/secrets.js so /admin
+ * Basic auth uses the exact same primitive. See its docstring.
  */
-
 export function requireInternalToken(req, res, next) {
   const provided = req.header('X-Internal-Token');
   if (!provided) {
     return res.status(401).json({ error: { code: 'NO_TOKEN', message: 'Missing X-Internal-Token' } });
   }
-
-  // Buffers must be the same length, else timingSafeEqual throws.
-  const a = Buffer.from(provided);
-  const b = Buffer.from(config.internalToken);
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+  if (!timingSafeCompare(provided, config.internalToken)) {
     return res.status(401).json({ error: { code: 'BAD_TOKEN', message: 'Invalid token' } });
   }
   next();

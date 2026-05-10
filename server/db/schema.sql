@@ -27,6 +27,24 @@ CREATE TABLE IF NOT EXISTS refresh_log (
 );
 CREATE INDEX IF NOT EXISTS idx_refresh_log_lookup ON refresh_log(tenant_id, provider, finished_at DESC);
 
+-- Per-refresh artifacts: raw payload from the source + computed diff vs previous run.
+-- Used by /admin to verify scrapers got it right. Retention is enforced inside
+-- runRefresh (keep N latest per (tenant, provider)) — no separate cron.
+CREATE TABLE IF NOT EXISTS refresh_artifacts (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id       TEXT NOT NULL,
+  provider        TEXT NOT NULL,
+  refresh_log_id  INTEGER,
+  raw_payload     TEXT,                    -- JSON, exactly as the source returned it
+  diff_json       TEXT,                    -- provider-computed diff vs previous artifact
+  screenshot_path TEXT,                    -- optional path to a captured screenshot (scrape mode)
+  captured_at     TEXT NOT NULL,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (refresh_log_id) REFERENCES refresh_log(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_refresh_artifacts_lookup
+  ON refresh_artifacts(tenant_id, provider, captured_at DESC);
+
 -- =========================================================================
 -- NORDNET / PORTFOLIO
 -- =========================================================================

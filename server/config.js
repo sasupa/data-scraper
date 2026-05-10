@@ -11,7 +11,7 @@ import 'dotenv/config';
 
 function required(key) {
   const v = process.env[key];
-  if (!v || v === 'replace-me-with-32-byte-hex') {
+  if (!v || v.startsWith('replace-me')) {
     throw new Error(`Missing required env var: ${key}`);
   }
   return v;
@@ -27,6 +27,7 @@ export const config = {
   host: optional('HOST', '127.0.0.1'),
   logLevel: optional('LOG_LEVEL', 'info'),
   internalToken: required('INTERNAL_TOKEN'),
+  adminPassword: required('ADMIN_PASSWORD'),
   dbPath: optional('DB_PATH', './data/scraper.db'),
   providers: {
     nordnet: {
