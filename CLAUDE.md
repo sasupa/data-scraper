@@ -18,7 +18,7 @@ Internal sidecar service that aggregates data from external sources (Nordnet, so
 - node-cron for scheduled jobs
 - pino for structured logging
 - PM2 for process management
-- Bound to 127.0.0.1:3030 (3001 is taken by docker-proxy on this host)
+- Default bind `127.0.0.1:3030` (port 3001 is taken by docker-proxy on this host). In production: `0.0.0.0:3030` with `ufw` allowing only the Tailscale interface. See Deployment.
 
 ## Folder structure
 
@@ -112,8 +112,61 @@ Routes only ever call `getCached`. Cron jobs call `refresh` (which internally ca
 ## Deployment
 
 - Host: `salikortti-4gb-hel1-1` (Hetzner). Project lives at `/var/www/data-scraper/`.
-- Runs under PM2 as `datascraper` (see `ecosystem.config.cjs`)
-- Apache does NOT proxy this service — internal-only, bound to 127.0.0.1
+- Process: PM2 as `datascraper` (see `ecosystem.config.cjs`).
+- Apache does NOT proxy this service — it's a private internal API.
 - Port **3030** (verify free before deploy: `ss -tlnp | grep 3030`).
   Used ports on this host as of init: 3000–3003, 3005, 3010, 3020, 3101.
-- Logs go to `/var/www/data-scraper/logs/` (configured in `ecosystem.config.cjs`) and PM2's stdout (`pm2 logs datascraper`)
+- Logs: `/var/www/data-scraper/logs/` and `pm2 logs datascraper`.
+
+### Network model
+
+Two access paths, both gated; the public internet sees nothing:
+
+1. **Internal-app traffic** (meTube, CRM, future Artmin apps on the same VPS)
+   → `http://127.0.0.1:3030/api/v1/...` over loopback. Token-protected
+   (`X-Internal-Token`).
+2. **Browser access to `/admin`** (humans on the user's tailnet)
+   → `http://<vps-tailscale-ip>:3030/admin`. Basic-auth-protected with a
+   separate `ADMIN_PASSWORD` (different scope from `INTERNAL_TOKEN`).
+
+How the public internet stays out:
+
+- In production, bind `HOST=0.0.0.0` so the process listens on all
+  interfaces (loopback + tailscale0 + eth0). Dev default stays `127.0.0.1`
+  to avoid accidental exposure on a developer laptop.
+- `ufw` is active with `default deny incoming`. Only explicit allows pass.
+- The only allow for port 3030 is interface-scoped to `tailscale0`.
+  The public Hetzner IP cannot reach 3030 even though the process binds to
+  `0.0.0.0`.
+- `scripts/setup-firewall.sh <port> <service>` is the idempotent helper
+  that adds that rule. Run it manually for each new internal service —
+  same shape every time, never auto-run from a deploy hook.
+
+### Production deploy checklist
+
+1. **Install Tailscale** (one-time, requires interactive login):
+   ```bash
+   curl -fsSL https://tailscale.com/install.sh | sh
+   sudo tailscale up         # follow the printed URL to authorize the device
+   tailscale ip -4           # note the VPS's tailnet address
+   ```
+2. **Configure env**:
+   ```bash
+   cp .env.example .env
+   # set HOST=0.0.0.0
+   # INTERNAL_TOKEN=$(openssl rand -hex 32)
+   # ADMIN_PASSWORD=$(openssl rand -base64 24)
+   ```
+3. **Install + seed + start**:
+   ```bash
+   npm ci
+   npm run seed -- <tenant-id> "<tenant name>"
+   pm2 start ecosystem.config.cjs && pm2 save
+   ```
+4. **Open the firewall hole** (idempotent):
+   ```bash
+   sudo scripts/setup-firewall.sh 3030 datascraper
+   ```
+5. **Verify** from a laptop joined to the same tailnet:
+   - `curl http://<vps-tailscale-ip>:3030/health` → `{ "status": "ok", ... }`
+   - Browser: `http://<vps-tailscale-ip>:3030/admin` (user `admin`, password from `ADMIN_PASSWORD`).
