@@ -1,0 +1,35 @@
+{
+  "_comment": [
+    "Copy this file to capture/tenants.json (gitignored).",
+    "Account UUIDs are not guessable — they come from Nordnet's UI URL or",
+    "from the first capture run's XHR response (raw.positions[*].accountId).",
+    "The `url` field is the Nordnet page the capture script navigates to in",
+    "order to bootstrap a session and harvest a Bearer token. The default",
+    "below works for most setups; replace if your Nordnet flow differs.",
+    "Each tenant maps to one entry in the dataScraper `tenants` table —",
+    "use `npm run seed -- <tenantId> '<label>'` on the server first."
+  ],
+  "tenants": [
+    {
+      "tenantId": "sasu",
+      "label": "Sasu personal",
+      "accounts": [
+        {
+          "uuid": "REPLACE_WITH_ACCOUNT_UUID_1",
+          "label": "AOT 14576144",
+          "url": "https://www.nordnet.fi/oversikt"
+        },
+        {
+          "uuid": "REPLACE_WITH_ACCOUNT_UUID_2",
+          "label": "AOT 66152216",
+          "url": "https://www.nordnet.fi/oversikt"
+        },
+        {
+          "uuid": "REPLACE_WITH_ACCOUNT_UUID_3",
+          "label": "OST 67860742",
+          "url": "https://www.nordnet.fi/oversikt"
+        }
+      ]
+    }
+  ]
+}

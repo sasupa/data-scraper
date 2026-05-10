@@ -39,3 +39,8 @@ keys/
 *.pem
 *.key
 !**/_template.key
+
+# Capture-side runtime config — account UUIDs and laptop secrets
+# (DATASCRAPER_URL, INTERNAL_TOKEN). Templates live in capture/*.example.*
+capture/tenants.json
+capture/.env
