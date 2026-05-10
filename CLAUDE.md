@@ -11,6 +11,16 @@ Internal sidecar service that aggregates data from external sources (Nordnet, so
 - **Tenant-aware from day one**: every table has `tenant_id`. Even when there's only one tenant.
 - **Stable API contracts**: consumers like meTube depend on the JSON shape. Breaking changes require a version bump (`/api/v2/...`).
 
+## Lessons
+
+See `lessons.md` for a running record of debugging dead-ends, wrong hypotheses,
+and root-cause findings. **Read it before debugging anything that "feels familiar"** —
+it might already be solved (or already a wrong-track that wasted time once).
+
+When a debugging session uncovers a non-obvious finding, add an entry to lessons.md
+in the same commit as the fix. The cost is two minutes; the payoff is not making
+the same mistake twice.
+
 ## Stack
 
 - Node 20+, Express
@@ -108,6 +118,9 @@ Routes only ever call `getCached`. Cron jobs call `refresh` (which internally ca
 - ❌ Catching errors silently (always log via pino with context)
 - ❌ Adding new endpoints without updating the consumer-facing JSON shape doc
 - ❌ Adding port numbers without checking for free ports first (`ss -tlnp | grep <port>`)
+- ❌ Forming a hypothesis before reading the actual error log (`err.log`, `pm2 logs`)
+- ❌ Assuming PM2-managed service uses `.env` NODE_ENV — it uses `ecosystem.config.cjs`'s `env` block
+- ❌ Adding a debugging finding as a code fix without recording the *why* in `lessons.md`
 
 ## Deployment
 
