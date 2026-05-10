@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'node:path';
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { config } from '../config.js';
 import { logger } from '../utils/logger.js';
 
@@ -27,6 +28,14 @@ db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
 logger.info({ path: config.dbPath }, 'SQLite connected');
+
+// Apply schema on import. Provider modules prepare statements at module-load
+// time, so the schema must exist before any of them are loaded. Running it
+// here guarantees that ordering — schema.sql is fully idempotent
+// (CREATE TABLE IF NOT EXISTS).
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+db.exec(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8'));
+logger.info('Schema applied');
 
 /**
  * Helper: run a function inside a transaction.

@@ -23,6 +23,10 @@ pino-*.log
 .pm2/
 ecosystem.config.local.cjs
 
+# Claude Code: skills are local tooling; per-machine local settings file
+.claude/skills/
+.claude/settings.local.json
+
 # Editors / OS
 .vscode/
 .idea/

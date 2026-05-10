@@ -2,15 +2,12 @@ import express from 'express';
 import pinoHttp from 'pino-http';
 import { config } from './config.js';
 import { logger } from './utils/logger.js';
-import { migrate } from './db/migrate.js';
+// Schema is applied on first import of ./db/index.js (transitive via routes/providers below).
 import { requireInternalToken, requireTenant } from './middleware/auth.js';
 import { errorHandler } from './middleware/error.js';
 import { healthRouter } from './routes/health.js';
 import { portfolioRouter } from './routes/portfolio.js';
 import { startScheduler } from './jobs/scheduler.js';
-
-// 1. Run migrations FIRST. If schema is broken, fail before binding the port.
-migrate();
 
 const app = express();
 
