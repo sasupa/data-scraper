@@ -68,7 +68,13 @@ CREATE TABLE IF NOT EXISTS portfolio_positions (
 );
 CREATE INDEX IF NOT EXISTS idx_positions_tenant ON portfolio_positions(tenant_id);
 
--- Daily snapshots for chart history. Append-only.
+-- Daily snapshots for chart history. Append-only (UPSERT per (tenant, date)).
+-- Extra fields beyond total_value capture details that the Nordnet
+-- holdings response carries but that don't fit cleanly into per-position rows:
+--   cash_balance           — uninvested cash on the account
+--   total_acquisition_cost — sum of cost basis across positions
+--   total_return_monetary  — unrealized P/L in account currency
+-- Older rows may have NULLs for these (added in a later migration).
 CREATE TABLE IF NOT EXISTS portfolio_snapshots (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   tenant_id   TEXT NOT NULL,
@@ -76,6 +82,9 @@ CREATE TABLE IF NOT EXISTS portfolio_snapshots (
   total_value REAL NOT NULL,
   currency    TEXT NOT NULL,
   positions_json TEXT NOT NULL,           -- full snapshot for time travel
+  cash_balance           REAL,
+  total_acquisition_cost REAL,
+  total_return_monetary  REAL,
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(tenant_id, snapshot_date)
 );

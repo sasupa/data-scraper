@@ -37,6 +37,22 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 db.exec(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8'));
 logger.info('Schema applied');
 
+// CREATE TABLE IF NOT EXISTS doesn't add columns to a table that already
+// exists. For additive column changes, ensureColumn checks PRAGMA table_info
+// and runs ALTER TABLE only when the column is missing. This stays in lockstep
+// with schema.sql (which holds the canonical shape for fresh installs).
+function ensureColumn(table, column, type) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    logger.info({ table, column }, 'Added column');
+  }
+}
+
+ensureColumn('portfolio_snapshots', 'cash_balance', 'REAL');
+ensureColumn('portfolio_snapshots', 'total_acquisition_cost', 'REAL');
+ensureColumn('portfolio_snapshots', 'total_return_monetary', 'REAL');
+
 /**
  * Helper: run a function inside a transaction.
  * Auto-rollback on throw, auto-commit on success.
