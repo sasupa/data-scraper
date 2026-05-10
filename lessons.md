@@ -5,6 +5,29 @@ Add new entries at the top. Each entry: what was assumed, what was actually true
 
 ---
 
+## 2026-05-10: Playwright in optionalDependencies skips the Chromium binary
+
+**Assumption:** `npm install` with `playwright` in optionalDependencies pulls
+everything needed for capture to run.
+
+**Reality:** Two separate problems compounded on Apple Silicon laptop:
+1. `optionalDependencies` was silently skipped during initial `npm install`
+   (123 packages added, playwright not among them — `npm list playwright`
+   returned empty). Cause unconfirmed; possibly platform-specific or related
+   to a stale lockfile. Fixed by `npm install --save-optional playwright`.
+2. Even after the npm package installed, `chromium.launch()` would throw
+   "Executable doesn't exist" because the Chromium browser binary is a
+   separate ~170MB download via `npx playwright install chromium`.
+
+**Why it matters:** "npm install ran clean" is not the same as "Playwright
+is ready". The setup checklist must include `npm run capture:setup` as an
+explicit, named step — silent failure at install becomes a confusing failure
+at first capture run. Smoke-test with a trivial script
+(`chromium.launch() → goto example.com → title`) before relying on the
+real capture flow.
+
+---
+
 ## 2026-05-10: Browser session capture is human-in-the-loop, not headless cron
 
 **Assumption:** Any data source can eventually be reduced to a server-side

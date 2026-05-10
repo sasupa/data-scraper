@@ -9,6 +9,7 @@
     "dev": "node --watch server/index.js",
     "migrate": "node server/db/migrate.js",
     "seed": "node scripts/seed.js",
+    "capture:setup": "playwright install chromium",
     "capture:nordnet": "node capture/index.js nordnet"
   },
   "dependencies": {

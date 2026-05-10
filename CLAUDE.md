@@ -143,6 +143,17 @@ Run: `npm run capture:nordnet` (workstation only; playwright is in
 `optionalDependencies` and lives in `node_modules` only when not skipped
 via `--omit=optional`).
 
+### Capture-side initial setup (laptop only, once per machine)
+
+    npm install
+    npm run capture:setup                                  # downloads Chromium binary (~170MB)
+    cp capture/.env.example capture/.env                   # fill in DATASCRAPER_URL + INTERNAL_TOKEN
+    cp capture/tenants.example.json capture/tenants.json   # fill in real account UUIDs
+
+The `capture:setup` step is **separate from `npm install`** — Playwright's npm
+package and the Chromium browser binary it controls are two different downloads.
+See lessons.md entry from 2026-05-10 for the failure mode if you skip it.
+
 ## Anti-patterns to avoid
 
 - ❌ Calling `fetchFresh` from a route handler (causes timeouts, rate-limit blowups)
