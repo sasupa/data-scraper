@@ -1,0 +1,24 @@
+{
+  "name": "datascraper",
+  "version": "0.1.0",
+  "description": "Internal sidecar service aggregating external data sources for Artmin apps",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "migrate": "node server/db/migrate.js",
+    "seed": "node scripts/seed.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "node-cron": "^3.0.3",
+    "pino": "^9.4.0",
+    "pino-http": "^10.3.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
